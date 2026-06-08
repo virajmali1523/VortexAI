@@ -3,6 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 // Load environment variables
 dotenv.config();
@@ -10,6 +11,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 7377;
 const DATA_DIR = path.join(__dirname, 'data');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
 
 // Middleware
 app.use(cors());
@@ -44,17 +46,162 @@ function getAnthropicClient() {
   return new Anthropic({ apiKey });
 }
 
+// --- Auth Store & Helpers ---
+const activeSessions = {}; // token -> { userId, email, expiresAt }
+
+function loadUsers() {
+  if (!fs.existsSync(USERS_FILE)) {
+    return [];
+  }
+  try {
+    return JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
+  } catch (e) {
+    console.error('Failed to parse users file:', e);
+    return [];
+  }
+}
+
+function saveUsers(users) {
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Failed to save users file:', e);
+  }
+}
+
+// Auth Middleware
+function authenticate(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized. No token provided.' });
+  }
+  const token = authHeader.split(' ')[1];
+  const session = activeSessions[token];
+  if (!session || session.expiresAt < Date.now()) {
+    if (session) delete activeSessions[token];
+    return res.status(401).json({ error: 'Session expired or invalid.' });
+  }
+  req.user = session;
+  next();
+}
+
+// --- Auth Routes ---
+
+app.post('/api/auth/register', (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+  }
+
+  const users = loadUsers();
+  const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  if (existingUser) {
+    return res.status(400).json({ error: 'Email is already registered.' });
+  }
+
+  const salt = crypto.randomBytes(16).toString('hex');
+  const passwordHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  const userId = 'user_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex');
+
+  const newUser = {
+    id: userId,
+    email: email.toLowerCase(),
+    passwordHash,
+    salt,
+    createdAt: Date.now()
+  };
+
+  users.push(newUser);
+  saveUsers(users);
+
+  // Ensure user's session folder exists
+  const userSessionDir = path.join(DATA_DIR, 'sessions', userId);
+  if (!fs.existsSync(userSessionDir)) {
+    fs.mkdirSync(userSessionDir, { recursive: true });
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  activeSessions[token] = {
+    userId,
+    email: newUser.email,
+    expiresAt: Date.now() + 24 * 60 * 60 * 1000
+  };
+
+  res.json({
+    token,
+    user: { id: userId, email: newUser.email }
+  });
+});
+
+app.post('/api/auth/login', (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
+
+  const users = loadUsers();
+  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  if (!user) {
+    return res.status(401).json({ error: 'Invalid email or password.' });
+  }
+
+  const passwordHash = crypto.pbkdf2Sync(password, user.salt, 1000, 64, 'sha512').toString('hex');
+  if (passwordHash !== user.passwordHash) {
+    return res.status(401).json({ error: 'Invalid email or password.' });
+  }
+
+  // Ensure user's session folder exists
+  const userSessionDir = path.join(DATA_DIR, 'sessions', user.id);
+  if (!fs.existsSync(userSessionDir)) {
+    fs.mkdirSync(userSessionDir, { recursive: true });
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  activeSessions[token] = {
+    userId: user.id,
+    email: user.email,
+    expiresAt: Date.now() + 24 * 60 * 60 * 1000
+  };
+
+  res.json({
+    token,
+    user: { id: user.id, email: user.email }
+  });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    delete activeSessions[token];
+  }
+  res.json({ success: true, message: 'Logged out successfully.' });
+});
+
+app.get('/api/auth/me', authenticate, (req, res) => {
+  res.json({
+    user: { id: req.user.userId, email: req.user.email }
+  });
+});
+
 // --- History API Endpoints ---
 
 // Get all chat sessions (summarized list)
-app.get('/api/history', (req, res) => {
+app.get('/api/history', authenticate, (req, res) => {
   try {
-    const files = fs.readdirSync(DATA_DIR);
+    const userSessionDir = path.join(DATA_DIR, 'sessions', req.user.userId);
+    if (!fs.existsSync(userSessionDir)) {
+      fs.mkdirSync(userSessionDir, { recursive: true });
+    }
+    const files = fs.readdirSync(userSessionDir);
     const sessions = [];
 
     files.forEach(file => {
       if (file.endsWith('.json')) {
-        const filePath = path.join(DATA_DIR, file);
+        const filePath = path.join(userSessionDir, file);
         try {
           const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
           sessions.push({
@@ -78,9 +225,13 @@ app.get('/api/history', (req, res) => {
 });
 
 // Get a single chat session messages
-app.get('/api/history/:id', (req, res) => {
+app.get('/api/history/:id', authenticate, (req, res) => {
   const sessionId = req.params.id;
-  const filePath = path.join(DATA_DIR, `${sessionId}.json`);
+  if (!/^[a-zA-Z0-9_-]+$/.test(sessionId)) {
+    return res.status(400).json({ error: 'Invalid session ID.' });
+  }
+  const userSessionDir = path.join(DATA_DIR, 'sessions', req.user.userId);
+  const filePath = path.join(userSessionDir, `${sessionId}.json`);
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'Chat session not found.' });
@@ -95,13 +246,17 @@ app.get('/api/history/:id', (req, res) => {
 });
 
 // Create/Update a chat session
-app.post('/api/history', (req, res) => {
+app.post('/api/history', authenticate, (req, res) => {
   const { id, title, messages, provider } = req.body;
-  if (!id) {
-    return res.status(400).json({ error: 'Session ID is required.' });
+  if (!id || !/^[a-zA-Z0-9_-]+$/.test(id)) {
+    return res.status(400).json({ error: 'Valid Session ID is required.' });
   }
 
-  const filePath = path.join(DATA_DIR, `${id}.json`);
+  const userSessionDir = path.join(DATA_DIR, 'sessions', req.user.userId);
+  if (!fs.existsSync(userSessionDir)) {
+    fs.mkdirSync(userSessionDir, { recursive: true });
+  }
+  const filePath = path.join(userSessionDir, `${id}.json`);
   const sessionData = {
     id,
     title: title || 'Untitled Chat',
@@ -119,9 +274,13 @@ app.post('/api/history', (req, res) => {
 });
 
 // Delete a chat session
-app.delete('/api/history/:id', (req, res) => {
+app.delete('/api/history/:id', authenticate, (req, res) => {
   const sessionId = req.params.id;
-  const filePath = path.join(DATA_DIR, `${sessionId}.json`);
+  if (!/^[a-zA-Z0-9_-]+$/.test(sessionId)) {
+    return res.status(400).json({ error: 'Invalid session ID.' });
+  }
+  const userSessionDir = path.join(DATA_DIR, 'sessions', req.user.userId);
+  const filePath = path.join(userSessionDir, `${sessionId}.json`);
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'Chat session not found.' });
@@ -136,7 +295,7 @@ app.delete('/api/history/:id', (req, res) => {
 });
 
 // Get suggested next topics/prompts based on the most recent chat session
-app.get('/api/suggestions', async (req, res) => {
+app.get('/api/suggestions', authenticate, async (req, res) => {
   const defaultSuggestions = [
     { label: 'Quicksort JS', prompt: 'Write a quicksort algorithm in JavaScript' },
     { label: 'CSS Glow Effect', prompt: 'Create a CSS code for glowing text effect' },
@@ -146,12 +305,17 @@ app.get('/api/suggestions', async (req, res) => {
   let latestSession = null;
 
   try {
-    const files = fs.readdirSync(DATA_DIR);
+    const userSessionDir = path.join(DATA_DIR, 'sessions', req.user.userId);
+    if (!fs.existsSync(userSessionDir)) {
+      fs.mkdirSync(userSessionDir, { recursive: true });
+      return res.json(defaultSuggestions);
+    }
+    const files = fs.readdirSync(userSessionDir);
     const sessionFiles = [];
 
     files.forEach(file => {
       if (file.endsWith('.json')) {
-        const filePath = path.join(DATA_DIR, file);
+        const filePath = path.join(userSessionDir, file);
         try {
           const stat = fs.statSync(filePath);
           sessionFiles.push({
@@ -301,7 +465,7 @@ Let me know if you would like me to help with anything else or if you want to pa
 }
 
 // --- Streaming Chat Endpoint ---
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', authenticate, async (req, res) => {
   const { messages, provider } = req.body;
 
   if (!messages || !Array.isArray(messages)) {

@@ -2,6 +2,7 @@ import { Component, OnInit, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { IonContent, MenuController } from '@ionic/angular';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ChatService, ChatMessage, ChatSession } from '../services/chat.service';
+import { AuthService } from '../services/auth.service';
 import { marked } from 'marked';
 import * as Prism from 'prismjs';
 
@@ -32,11 +33,13 @@ export class HomePage implements OnInit {
   userInput: string = '';
   isGenerating: boolean = false;
   isDarkMode: boolean = false;
+  currentUserEmail: string = '';
 
   private isStopRequested: boolean = false;
 
   constructor(
     private chatService: ChatService,
+    private authService: AuthService,
     private menuCtrl: MenuController,
     private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef
@@ -49,6 +52,10 @@ export class HomePage implements OnInit {
     this.initTheme();
     this.createNewChat();
     this.loadSuggestions();
+
+    this.authService.currentUser$.subscribe(user => {
+      this.currentUserEmail = user ? user.email : '';
+    });
   }
 
   // --- Theme Init & Toggle ---
@@ -313,5 +320,9 @@ export class HomePage implements OnInit {
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours}h ago`;
     return new Date(timestamp).toLocaleDateString();
+  }
+
+  logout() {
+    this.authService.logout().subscribe();
   }
 }

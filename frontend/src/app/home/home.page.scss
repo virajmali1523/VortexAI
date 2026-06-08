@@ -1,20 +1,26 @@
 // Premium Next-Level Theme & Layout Variables
 :host {
-  --bg-workspace: #f4f5f9;
-  --bg-sidebar: #0f1015;
-  --bg-card: rgba(255, 255, 255, 0.5);
+  --bg-workspace: #f8fafc;
+  --bg-sidebar: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.7);
   --border-color: rgba(99, 102, 241, 0.08);
-  --text-main: #1e202b;
-  --text-muted: #64748b;
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  
+  --sidebar-text: #1e293b;
+  --sidebar-text-muted: #64748b;
+  --sidebar-item-hover-bg: rgba(99, 102, 241, 0.04);
+  --sidebar-item-active-bg: rgba(99, 102, 241, 0.08);
+  --sidebar-border: rgba(99, 102, 241, 0.08);
   
   --bubble-user-bg: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   --bubble-user-text: #ffffff;
-  --bubble-ai-bg: rgba(255, 255, 255, 0.7);
-  --bubble-ai-text: #1e202b;
+  --bubble-ai-bg: #ffffff;
+  --bubble-ai-text: #0f172a;
   
   --gradient-brand: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #06b6d4 100%);
   --accent-color: #6366f1;
-  --footer-bg: rgba(244, 245, 249, 0.8);
+  --footer-bg: rgba(248, 250, 252, 0.85);
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', Courier, monospace;
 
   font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
@@ -29,6 +35,12 @@
   --border-color: rgba(99, 102, 241, 0.15);
   --text-main: #f1f5f9;
   --text-muted: #94a3b8;
+
+  --sidebar-text: #ffffff;
+  --sidebar-text-muted: #94a3b8;
+  --sidebar-item-hover-bg: rgba(255, 255, 255, 0.03);
+  --sidebar-item-active-bg: rgba(99, 102, 241, 0.12);
+  --sidebar-border: rgba(255, 255, 255, 0.06);
   
   --bubble-user-bg: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
   --bubble-user-text: #ffffff;
@@ -67,19 +79,19 @@
 // --- Sidebar Custom Styling ---
 .sidebar-toolbar {
   --background: var(--bg-sidebar);
-  --color: #ffffff;
+  --color: var(--sidebar-text);
   --border-style: none;
   font-weight: 800;
   font-family: 'Outfit', sans-serif;
   font-size: 1.1rem;
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--sidebar-border);
 }
 
 .sidebar-content {
   --background: var(--bg-sidebar);
-  --color: #ffffff;
+  --color: var(--sidebar-text);
   display: flex;
   flex-direction: column;
 }
@@ -108,7 +120,7 @@
 .no-history-msg {
   text-align: center;
   padding: 40px 16px;
-  color: #4b5563;
+  color: var(--sidebar-text-muted);
   font-size: 0.88rem;
   font-style: italic;
 }
@@ -120,9 +132,9 @@
 
 .history-item {
   --background: transparent;
-  --background-hover: rgba(255, 255, 255, 0.03);
+  --background-hover: var(--sidebar-item-hover-bg);
   --border-radius: 12px;
-  --color: #94a3b8;
+  --color: var(--sidebar-text-muted);
   margin-bottom: 6px;
   transition: all 0.2s ease;
   border: 1px solid transparent;
@@ -130,7 +142,7 @@
   h3 {
     font-size: 0.9rem;
     font-weight: 600;
-    color: #cbd5e1;
+    color: var(--sidebar-text);
     margin: 0 0 4px 0;
     white-space: nowrap;
     overflow: hidden;
@@ -140,31 +152,31 @@
   
   p {
     font-size: 0.72rem;
-    color: #4b5563;
+    color: var(--sidebar-text-muted);
     margin: 0;
   }
 
   &:hover {
     h3 {
-      color: #ffffff;
+      color: var(--accent-color);
     }
   }
 }
 
 .active-session {
-  --background: rgba(99, 102, 241, 0.12) !important;
-  --color: #ffffff;
+  --background: var(--sidebar-item-active-bg) !important;
+  --color: var(--accent-color);
   border: 1px solid rgba(99, 102, 241, 0.25) !important;
   box-shadow: inset 0 0 12px rgba(99, 102, 241, 0.08);
   
   h3 {
-    color: #ffffff;
+    color: var(--accent-color);
     font-weight: 700;
   }
 }
 
 .session-icon {
-  color: #a5b4fc;
+  color: var(--accent-color);
   margin-right: 12px;
   font-size: 1.15rem;
 }
@@ -197,19 +209,52 @@
   animation: logoShimmer 8s infinite alternate;
 }
 
-.theme-toggle-btn {
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-email-display {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
+  border-radius: 20px;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  
+  :host-context(.dark) &, :host-context(.ion-palette-dark) & {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}
+
+.theme-toggle-btn, .logout-btn {
   --color: var(--text-main);
   --background-hover: rgba(99, 102, 241, 0.1);
   --border-radius: 50%;
   height: 40px;
   width: 40px;
   margin: 0;
-  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   
   &:hover {
-    transform: rotate(30deg) scale(1.1);
+    transform: scale(1.1);
     --color: var(--accent-color);
   }
+}
+
+.theme-toggle-btn:hover {
+  transform: rotate(30deg) scale(1.1);
+}
+
+.logout-btn:hover {
+  --color: #ef4444;
+  --background-hover: rgba(239, 68, 68, 0.08);
 }
 
 // --- Main Workspace Chat Content Area ---

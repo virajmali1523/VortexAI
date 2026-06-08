@@ -1,0 +1,93 @@
+<ion-content class="login-content-area" scrollEvents="false">
+  <div class="login-wrapper">
+    <!-- Top actions (dark mode toggle) -->
+    <div class="top-bar">
+      <ion-button (click)="toggleDarkMode()" fill="clear" class="theme-toggle-btn">
+        <ion-icon [name]="isDarkMode ? 'sunny-outline' : 'moon-outline'"></ion-icon>
+      </ion-button>
+    </div>
+
+    <div class="login-card-container">
+      <div class="login-card">
+        <!-- Inside content container -->
+        <div class="welcome-inner">
+          <div class="welcome-logo">✨</div>
+          <h1>{{ isLoginMode ? 'Welcome Back' : 'Create Account' }}</h1>
+          <p class="subtitle">{{ isLoginMode ? 'Sign in to continue to VortexAI' : 'Get started by creating a free account' }}</p>
+
+          <!-- Error display -->
+          <div class="error-banner" *ngIf="errorMessage">
+            <ion-icon name="alert-circle-outline" class="error-icon"></ion-icon>
+            <span class="error-text">{{ errorMessage }}</span>
+          </div>
+
+          <form (ngSubmit)="onSubmit()" #loginForm="ngForm">
+            <!-- Email Field -->
+            <div class="input-field-wrapper">
+              <label>Email Address</label>
+              <div class="input-container">
+                <ion-icon name="mail-outline" class="input-icon"></ion-icon>
+                <input 
+                  type="email" 
+                  name="email" 
+                  [(ngModel)]="email" 
+                  placeholder="name@example.com" 
+                  required 
+                  autocomplete="email"
+                  [disabled]="isLoading" />
+              </div>
+            </div>
+
+            <!-- Password Field -->
+            <div class="input-field-wrapper">
+              <label>Password</label>
+              <div class="input-container">
+                <ion-icon name="lock-closed-outline" class="input-icon"></ion-icon>
+                <input 
+                  type="password" 
+                  name="password" 
+                  [(ngModel)]="password" 
+                  placeholder="••••••••" 
+                  required 
+                  autocomplete="current-password"
+                  [disabled]="isLoading" />
+              </div>
+            </div>
+
+            <!-- Confirm Password (Register Mode only) -->
+            <div class="input-field-wrapper" *ngIf="!isLoginMode">
+              <label>Confirm Password</label>
+              <div class="input-container">
+                <ion-icon name="lock-closed-outline" class="input-icon"></ion-icon>
+                <input 
+                  type="password" 
+                  name="confirmPassword" 
+                  [(ngModel)]="confirmPassword" 
+                  placeholder="••••••••" 
+                  required 
+                  autocomplete="new-password"
+                  [disabled]="isLoading" />
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <ion-button 
+              type="submit" 
+              expand="block" 
+              class="submit-btn" 
+              [disabled]="isLoading">
+              <ion-spinner name="crescent" *ngIf="isLoading" class="spinner-loader"></ion-spinner>
+              <span *ngIf="!isLoading">{{ isLoginMode ? 'Sign In' : 'Sign Up' }}</span>
+            </ion-button>
+          </form>
+
+          <!-- Mode Toggle link -->
+          <div class="toggle-mode-container">
+            <span class="toggle-text">{{ isLoginMode ? "Don't have an account?" : "Already have an account?" }}</span>
+            <a class="toggle-link" (click)="toggleMode()">{{ isLoginMode ? 'Create one' : 'Sign in' }}</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</ion-content>

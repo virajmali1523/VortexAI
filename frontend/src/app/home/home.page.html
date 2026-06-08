@@ -47,9 +47,17 @@
       </ion-title>
       
       <ion-buttons slot="end" class="header-actions">
+        <!-- User email display -->
+        <span class="user-email-display" *ngIf="currentUserEmail">{{ currentUserEmail }}</span>
+
         <!-- Dark Mode Toggle -->
         <ion-button (click)="toggleDarkMode()" class="theme-toggle-btn">
           <ion-icon [name]="isDarkMode ? 'sunny-outline' : 'moon-outline'"></ion-icon>
+        </ion-button>
+
+        <!-- Logout Button -->
+        <ion-button (click)="logout()" class="logout-btn" title="Sign Out">
+          <ion-icon name="log-out-outline"></ion-icon>
         </ion-button>
       </ion-buttons>
     </ion-toolbar>
