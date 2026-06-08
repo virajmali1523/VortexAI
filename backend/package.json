@@ -1,0 +1,17 @@
+{
+  "name": "ai-chatbot-backend",
+  "version": "1.0.0",
+  "description": "Express backend for multi-provider AI chatbot streaming and history",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.28.0",
+    "@google/generative-ai": "^0.21.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "openai": "^4.68.0"
+  }
+}

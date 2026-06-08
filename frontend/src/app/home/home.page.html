@@ -1,0 +1,128 @@
+<ion-menu contentId="main-content" menuId="history-menu">
+  <ion-header>
+    <ion-toolbar class="sidebar-toolbar">
+      <ion-title>History</ion-title>
+    </ion-toolbar>
+  </ion-header>
+  <ion-content class="sidebar-content">
+    <div class="new-chat-container">
+      <ion-button expand="block" (click)="createNewChat()" class="new-chat-btn">
+        <ion-icon name="add-outline" slot="start"></ion-icon>
+        New Chat
+      </ion-button>
+    </div>
+    
+    <ion-list class="history-list">
+      <div *ngIf="history.length === 0" class="no-history-msg">
+        No previous conversations
+      </div>
+      <ion-item-sliding *ngFor="let session of history">
+        <ion-item button (click)="loadSession(session.id)" [class.active-session]="session.id === currentSessionId" class="history-item">
+          <ion-icon name="chatbox-ellipses-outline" slot="start" class="session-icon"></ion-icon>
+          <ion-label>
+            <h3>{{ session.title }}</h3>
+            <p>{{ getRelativeTime(session.updatedAt) }}</p>
+          </ion-label>
+        </ion-item>
+        
+        <ion-item-options side="end">
+          <ion-item-option color="danger" (click)="deleteSession(session.id, $event)">
+            <ion-icon name="trash-outline" slot="icon-only"></ion-icon>
+          </ion-item-option>
+        </ion-item-options>
+      </ion-item-sliding>
+    </ion-list>
+  </ion-content>
+</ion-menu>
+
+<div class="ion-page" id="main-content">
+  <ion-header>
+    <ion-toolbar class="main-header-toolbar">
+      <ion-buttons slot="start">
+        <ion-menu-button></ion-menu-button>
+      </ion-buttons>
+      
+      <ion-title class="app-title-container">
+        <span class="gradient-text">VortexAI</span>
+      </ion-title>
+      
+      <ion-buttons slot="end" class="header-actions">
+        <!-- Dark Mode Toggle -->
+        <ion-button (click)="toggleDarkMode()" class="theme-toggle-btn">
+          <ion-icon [name]="isDarkMode ? 'sunny-outline' : 'moon-outline'"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content #chatContent class="chat-content-area" scrollEvents="true">
+    <div class="chat-messages-container">
+      <!-- Welcome panel if no messages -->
+      <div *ngIf="messages.length === 0" class="welcome-container">
+        <div class="welcome-card">
+          <div class="welcome-logo">✨</div>
+          <h1>How can I help you today?</h1>
+          <p>Start typing to initiate a conversation with Gemini AI.</p>
+          <div class="welcome-chips" *ngIf="suggestions && suggestions.length > 0">
+            <div class="chip" *ngFor="let sug of suggestions" (click)="prefillPrompt(sug.prompt)">
+              <span class="chip-sparkle">✨</span> {{ sug.label }}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Messages List -->
+      <div *ngFor="let msg of messages" class="message-bubble-wrapper" [class.user-message]="msg.role === 'user'" [class.ai-message]="msg.role !== 'user'">
+        <div class="message-avatar">
+          {{ msg.role === 'user' ? '👤' : getProviderAvatar() }}
+        </div>
+        <div class="message-bubble-content">
+          <div class="message-meta">
+            <span class="message-sender">{{ msg.role === 'user' ? 'You' : getProviderName() }}</span>
+          </div>
+          <!-- Custom Markdown Parsed HTML Content -->
+          <div class="message-body" [innerHTML]="parseMarkdown(msg.content)"></div>
+        </div>
+      </div>
+      
+      <!-- Streaming response indicator -->
+      <div *ngIf="isGenerating" class="message-bubble-wrapper ai-message streaming-indicator">
+        <div class="message-avatar">{{ getProviderAvatar() }}</div>
+        <div class="message-bubble-content">
+          <div class="message-meta">
+            <span class="message-sender">{{ getProviderName() }} is typing...</span>
+          </div>
+          <div class="typing-indicator">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ion-content>
+
+  <ion-footer class="chat-footer-input">
+    <ion-toolbar class="input-toolbar">
+      <div class="input-container">
+        <ion-textarea
+          placeholder="Ask me anything..."
+          [autoGrow]="true"
+          rows="1"
+          maxRows="6"
+          [(ngModel)]="userInput"
+          (keydown)="handleEnterKey($event)"
+          class="chat-textarea">
+        </ion-textarea>
+        <div class="footer-buttons">
+          <ion-button fill="clear" color="medium" *ngIf="isGenerating" (click)="stopGeneration()" class="stop-btn">
+            <ion-icon name="stop-circle-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+          <ion-button [disabled]="!userInput.trim() && !isGenerating" fill="clear" (click)="sendMessage()" class="send-btn">
+            <ion-icon name="send" slot="icon-only"></ion-icon>
+          </ion-button>
+        </div>
+      </div>
+    </ion-toolbar>
+  </ion-footer>
+</div>
